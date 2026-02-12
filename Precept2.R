@@ -151,6 +151,9 @@ kwic(tokens(reviews), pattern = "hat(e|ed|es|ing)", valuetype = "regex")
 
 reviews.colloc <- textstat_collocations(reviews) # default is bigrams
 ## how to interpret?
+## count_nested: how many times this 3-word collocation appears within longer sequences
+## lambda: log-likelihood ratio that measures association strength
+## z: statistical significance
 
 ## trigrams
 reviews.colloc.3 <- textstat_collocations(reviews, size = 3)
@@ -178,6 +181,8 @@ grep("^F+[a-z0-9]+ure$", mysentence, value = T)
 ## starts with F, contains middle characters with a-z and/or 0-9 and ends with "ure"
 
 grep("^F{1}[a-z0-9]{3}ure$", mysentence, value = T) # why does this work?
+# F{1} - Exactly 1 uppercase "F"
+# [a-z0-9]{3} - Exactly 3 characters that are lowercase letters or digits
 
 
 ## 3.1) Preprocessing Validation with preText ----------------------------------
@@ -186,16 +191,17 @@ preprocessed_documents <- factorial_preprocessing(
   reviews,
   use_ngrams = FALSE,
   infrequent_term_threshold = 0.2,
-  verbose = TRUE)
+  verbose = TRUE) 
 
 head(preprocessed_documents$choices)
+nrow(preprocessed_documents$choices)
 
 preText_results <- preText(preprocessed_documents,
-                           dataset_name = "SOTU Speeches",
                            distance_method = "cosine",
-                           num_comparisons = 20,
-                           verbose = TRUE)
+                           num_comparisons = 20, # Number of random document pairs to compare
+                           verbose = TRUE) 
 
+# Cosine_distance = β₀ + β₁(Stemming) + β₂(Stopwords) + β₃(Lowercase) + β₄(Punctuation) + ... + ε
 preText_score_plot(preText_results)
 
 ## Questions?
