@@ -64,6 +64,35 @@ k * Tee^b
 M
 
 
+## One way to identify k and b
+
+# Cumulative tokens and types doc by doc
+cumulative_tokens <- cumsum(lengths(reviews.tok))
+
+# For cumulative types, you need to track unique tokens seen so far
+# One approach: loop through documents
+all_words <- as.list(reviews.tok)
+seen <- character(0)
+cumulative_types <- numeric(length(all_words))
+
+for (i in seq_along(all_words)) {
+  seen <- union(seen, all_words[[i]])
+  cumulative_types[i] <- length(seen)
+}
+
+# Fit the model
+df <- data.frame(
+  log_T = log(cumulative_tokens),
+  log_M = log(cumulative_types)
+)
+
+fit <- lm(log_M ~ log_T, data = df)
+summary(fit)
+
+b_hat <- coef(fit)["log_T"]
+k_hat <- exp(coef(fit)["(Intercept)"])
+
+
 ## 1.2) Zipf's Law ---------------------------------------------------------
 
 ## tells us about term frequency relative to most frequent term
