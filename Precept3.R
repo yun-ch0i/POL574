@@ -1,6 +1,6 @@
 
 ## POL 574: Text-As-Data
-## Date: February 19, 2026
+## Date: February 19, 2025
 ## Author: Yun Choi
 
 ## Lab adapted from: Christian Baehr, Elisa Wirsching, Lucia Motolinia, 
@@ -13,7 +13,6 @@
 ## - Project Gutenberg
 
 ################################################# Precept 3: Processing Text in R
-
 
 ## load packages
 #devtools::install_github("quanteda/quanteda.corpora")
@@ -28,7 +27,6 @@ reviews <- readtext("data/reviews.csv", text_field = "review") |>
 
 ## 1.1) Heaps' Law -------------------------------------------------------------
 
-
 ## Heaps Law -> tokens to types
 
 ## M -> types
@@ -39,6 +37,9 @@ reviews <- readtext("data/reviews.csv", text_field = "review") |>
 
 ## k and b are "free" parameters
 ## for english, generally k ~ [30, 100] and b ~ [0.4, 0.6]
+
+## The exponent b < 1 means vocabulary growth slows down the more text you have
+## k is more of a scaling constant tied to the specific corpus/language/domain.
 
 reviews.tok <- tokens(reviews, remove_punct = TRUE)
 Tee <- sum(lengths(reviews.tok)) # number of tokens
@@ -52,7 +53,6 @@ b <- 0.49
 k * ( Tee^b )
 M
 
-
 ## any ideas why we are be overestimating?
 
 ## New parameters
@@ -62,6 +62,7 @@ b <- 0.47
 
 k * Tee^b
 M
+
 
 ## 1.2) Zipf's Law ---------------------------------------------------------
 
@@ -96,22 +97,18 @@ par(mfrow = c(1, 2)) # visualize both
 
 plot(log(1:100), log(topfeatures(reviews.dfm, 100)),
      xlab = "log(rank)", ylab = "log(frequency)")
-## add fitted line from regression to plot
-abline(reg, col = "red")
-## Zipfs prediction
-abline(a = reg$coefficients[1], b = -1, col = "black")
-
+abline(reg, col = "red") # OLS fitted line through your actual data
+abline(a = reg$coefficients[1], b = -1, col = "black") # Theoretical Zip's Law Line
 
 plot(log(1:100), log(topfeatures(reviews.dfm.nostop, 100)),
      xlab = "log(rank)", ylab = "log(frequency)")
-abline(reg.nostop, col = "red")
-abline(a = reg.nostop$coefficients[1], b = -1, col = "black")
+abline(reg.nostop, col = "red") 
+abline(a = reg.nostop$coefficients[1], b = -1, col = "black") 
 
 ## very different!!!
-
+## red line show
 
 ## 2.1) Calculating distance ----------------------------------------------
-
 
 ## dfm
 reviews.dfm <- tokens(reviews, # tokenize
@@ -129,12 +126,22 @@ indices <- c(24, 25, 48)
 as.character(reviews[indices]) # take a peek
 
 ## subset the dfm to just those three documents
-reviews.3 <- dfm_subset(reviews.dfm, subset = 1:nrow(reviews.dfm) %in% indices)
+reviews.3 <- reviews.dfm[indices, ]
 
 ## compute the COSINE similarity of the documents
 textstat_simil(reviews.3, method = c("cosine")) # what do higher values mean?
 
-#textstat_dist()
+# Cosine similarity ranges from -1 to 1 in general
+# but for text data it's effectively 0 to 1.
+# This is because DTM/DFM entries are word counts or frequencies, which are always non-negative
+# Cosine similarity is the dot product of two vectors divided by the product of their magnitudes
+# with no negative values in the vectors, the result can never be negative.
+
+# Cosine similarity = 1 → angle of 0° between vectors (pointing in the same direction)
+# Cosine similarity = 0 → angle of 90° (orthogonal, no shared words)
+# Cosine similarity = -1 → angle of 180° (pointing in opposite directions)
+
+# textstat_dist()
 
 #######################################
 
@@ -171,6 +178,9 @@ budget.lp <- corpus_subset(data_corpus_irishbudgets, party %in% largeparty)
 budget.lp <- budget.lp[budget.lp != ""] # omit empty speech
 
 ## calculate average FRE score by party
+# FRE = 206.835 - (1.015*ASL) - (84.6 * ASW)
+# ASL: Average Sentence Length (total words / total sentences)
+# ASW: Average number of Syllables per Word (total syllables / total words)
 
 ## compute FRE by document
 fre <- textstat_readability(budget.lp, measure = "Flesch") |>
@@ -206,6 +216,8 @@ budget.lp.df <- data.frame(budget.lp) |>
 ## break texts up by party (returns a list)
 budget.lp.df.SPLIT <- split(budget.lp.df, f=as.factor(budget.lp.df$party))
 
+length(budget.lp.df.SPLIT) == unique(budget.lp.df$party)
+
 
 ## create a function to generate one bootstrapped sample per party 
 ## and compute FRE
@@ -214,7 +226,7 @@ boot.fre <- function(party) { # accepts df of texts (party-specific)
   n <- nrow(party) # number of texts
   docnums <- sample(1:n, size=n, replace=T) # sample texts WITH replacement
   docs.boot <- party[docnums, "text"]
-  docnames(docs.boot) <- 1:length(docs.boot) # something you have to do
+  docnames(docs.boot) <- 1:length(docs.boot) # reassigns docnames as sequential integers
   fre <- textstat_readability(docs.boot, measure = "Flesch") # compute FRE for each
   return(mean(fre[,"Flesch"])) # return flesch scores only
 }
@@ -236,8 +248,8 @@ for(i in 1:iter) {
 
 
 ## combine the point estimates to a data frame and compute statistics by party
-boot.means.df <- do.call(rbind.data.frame, boot.means)
-mean.boot <- apply(boot.means.df, 2, mean)
+boot.means.df <- do.call(rbind.data.frame, boot.means) # do.call
+mean.boot <- apply(boot.means.df, 2, mean) 
 sd.boot <- apply(boot.means.df, 2, sd)
 
 ## create data frame for plot
@@ -250,11 +262,11 @@ ci95 <- qnorm(0.975)
 
 ## ggplot point estimate + variance
 ggplot(plot_df, aes(colour = party)) + # general setup for plot
-  geom_linerange(aes(x = party, 
+  geom_linerange(aes(x = party, # draws a vertical line b/w ymin and ymax
                      ymin = mean - se*ci90, 
                      ymax = mean + se*ci90), 
                  lwd = 1, position = position_dodge(width = 1/2)) + # plot 90% interval
-  geom_pointrange(aes(x = party, 
+  geom_pointrange(aes(x = party, # does the same but w/ point in the middle
                       y = mean, 
                       ymin = mean - se*ci95, 
                       ymax = mean + se*ci95), 
@@ -266,11 +278,10 @@ ggplot(plot_df, aes(colour = party)) + # general setup for plot
   theme(legend.position = "none") # fancy stuff
 
 
-
 ## 4.1) Project Gutenberg: https://www.gutenberg.org/
 
 ## collection of (machine readable) novels and other texts + they have an R package!
-## for more info refer to: https://cran.r-project.org/web/packages/gutenbergr/vignettes/intro.html
+## for more info refer to: https://cran.r-project.org/web/packages/gutenbergr/index.html
 
 ## what do they have by Jane Austen?
 austen <- gutenberg_works() %>% filter(author == "Austen, Jane")
