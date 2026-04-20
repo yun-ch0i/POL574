@@ -1,4 +1,4 @@
-# This script will be helpful in solving HW3 Q8.2
+# This script will be helpful for HW3, Question 8.2
 
 library(conText)
 library(quanteda)
